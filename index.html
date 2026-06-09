@@ -58,7 +58,6 @@
         padding-right: 5px;
     }
     
-    /* ตกแต่งแถบเลื่อน Scrollbar ของเมนู */
     .mission-list::-webkit-scrollbar { width: 4px; }
     .mission-list::-webkit-scrollbar-thumb { background: rgba(0, 255, 255, 0.2); border-radius: 10px; }
 
@@ -91,13 +90,16 @@
     .main-content {
         flex: 1;
         padding: 30px;
-        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
     }
 
     .content-header {
-        margin-bottom: 25px;
+        margin-bottom: 20px;
         border-bottom: 1px solid rgba(255,255,255,0.1);
         padding-bottom: 15px;
+        flex-shrink: 0;
     }
 
     .content-header h1 {
@@ -107,39 +109,39 @@
         letter-spacing: 1px;
     }
 
-    /* พื้นที่สำหรับดึงหน้า PDF มาแสดงผล */
+    /* พื้นที่แสดงไฟล์ PDF ขยายใหญ่เต็มจอคอมพิวเตอร์ */
     .pdf-container {
         width: 100%;
-        height: 500px;
+        height: calc(100vh - 170px); /* ปรับความสูงอัตโนมัติให้ใหญ่เต็มที่สายตา */
         background: #1e293b;
         border: 1px solid rgba(0, 255, 255, 0.2);
         border-radius: 12px;
-        margin-bottom: 25px;
         box-shadow: 0 5px 25px rgba(0,0,0,0.4);
         overflow: hidden;
+        position: relative;
+        flex: 1;
+    }
+    
+    .pdf-placeholder {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: #64748b;
+        text-align: center;
+        z-index: 1;
     }
 
     .pdf-container iframe {
         width: 100%;
         height: 100%;
         border: none;
+        position: relative;
+        z-index: 2;
+        background: transparent;
     }
 
-    /* กล่องแสดงโค้ดภาษาซี/HTML */
-    .code-box {
-        background: #090d16;
-        padding: 20px;
-        border-radius: 10px;
-        border-left: 4px solid var(--neon-purple);
-        font-family: 'Courier New', Courier, monospace;
-        font-size: 14px;
-        color: #cbd5e1;
-        overflow-x: auto;
-        white-space: pre;
-        line-height: 1.5;
-    }
-
-    /* ปุ่มช่วยเหลือลอยตัว */
+    /* ปุ่ม AI */
     .ask-ai-btn {
         position: fixed;
         bottom: 30px;
@@ -165,13 +167,11 @@
 </head>
 <body>
 
-    <!-- แถบเมนูด้านซ้าย (เรนเดอร์ผ่าน JavaScript) -->
     <aside class="sidebar">
         <div class="brand">PROJECT NEON</div>
         <ul class="mission-list" id="sidebarMenu"></ul>
     </aside>
 
-    <!-- พื้นที่เนื้อหาหลักแสดงแผนการสอนและไฟล์ปฏิบัติงาน -->
     <main class="main-content">
         <div class="content-header">
             <h1 id="mainTitle">LOADING...</h1>
@@ -181,11 +181,9 @@
 
         <h3 style="color: var(--neon-blue); margin-bottom: 12px; font-size: 16px;">📄 Operation Manual (คู่มือปฏิบัติการ)</h3>
         <div class="pdf-container">
+            <div class="pdf-placeholder" id="pdfPlaceholder">กำลังโหลดไฟล์ PDF คู่มือ...</div>
             <iframe id="pdfViewer" src=""></iframe>
         </div>
-
-        <h3 style="color: var(--neon-purple); margin-bottom: 12px; font-size: 16px;">💻 Code Snippet (ชิ้นส่วนโค้ดภารกิจ)</h3>
-        <div class="code-box" id="codeViewer"></div>
     </main>
 
     <button class="ask-ai-btn" onclick="openAITips()">
@@ -193,60 +191,53 @@
     </button>
 
 <script>
-// 1. คลังจัดเก็บข้อมูลบทเรียนทั้งหมด (คุณสามารถเปลี่ยนชื่อไฟล์ .pdf และโค้ดในนี้ได้เลยครับ)
+// ฐานข้อมูลบทเรียนและไฟล์ PDF (ตัดส่วนของ code snippet ทิ้งเพื่อความสะอาดของระบบ)
 const database = [
     {
         id: "MISSION 0.1",
         title: "Introduction to IoT",
-        desc: "ทำความเข้าใจแผนผังการไหลของข้อมูลจากปุ่มหน้าเว็บเว็บแอปไปจนถึงบอร์ดรีเลย์ควบคุมไฟ",
-        pdf: "mission0_1.pdf",
-        code: "// ภารกิจทฤษฎีเบื้องต้น\n// โปรดเปิดอ่านคู่มือปฏิบัติการด้านบนเพื่อศึกษาแผนผังระบบ"
+        desc: "ทำความเข้าใจแผนผังการไหลของข้อมูลจากปุ่มหน้าเว็บไปจนถึงบอร์ดรีเลย์",
+        pdf: "mission0_1.pdf"
     },
     {
         id: "MISSION 0.2",
         title: "Tools Installation",
-        desc: "ขั้นตอนการลงโปรแกรม Arduino IDE และ Driver พอร์ตอัปโหลด CH340 ลงคอมพิวเตอร์",
-        pdf: "mission0_2.pdf",
-        code: "// ขั้นตอนนี้ยังไม่มีชุดโค้ดคำสั่ง\n// ให้ทำการตั้งค่าโปรแกรมบนคอมพิวเตอร์ตามสไลด์คู่มือ"
+        desc: "ขั้นตอนการลงโปรแกรม Arduino IDE และ Driver พอร์ตอัปโหลด CH340",
+        pdf: "mission0_2.pdf"
     },
     {
         id: "MISSION 0.3",
         title: "The Cloud Database",
-        desc: "การสมัครบัญชี Google Cloud และเปิดใช้งานคลังฐานข้อมูล Realtime Database บนระบบ Firebase",
-        pdf: "mission0_3.pdf",
-        code: "const firebaseConfig = {\n  apiKey: \"ใส่รหัส_API_KEY_ที่ได้จากก้อนเมฆคลาวด์ของคุณ\",\n  databaseURL: \"ใส่ที่อยู่_DATABASE_URL_ของคุณ\"\n};"
+        desc: "การสมัครบัญชี Google Cloud และเปิดใช้งาน Realtime Database บนระบบ Firebase",
+        pdf: "22.pdf" /* เรียกใช้ไฟล์คู่มือสมัครตามฐานข้อมูลจริงของคุณครู */
     },
     {
         id: "MISSION 1.1",
         title: "Web UI Design",
-        desc: "เริ่มต้นเขียนโค้ดภาษา HTML เพื่อสร้างกล่องคอนเทนเนอร์และปุ่มสำหรับกดสลับสถานะควบคุมไฟ",
-        pdf: "mission1_1.pdf",
-        code: "<div class=\"device-row\">\n  <span class=\"device-name\">💡 ช่องที่ 1 (D1)</span>\n  <label class=\"switch\">\n     <input type=\"checkbox\" id=\"device1\" onchange=\"toggleDevice(1)\">\n     <span class=\"slider\"></span>\n  </label>\n</div>"
+        desc: "เริ่มต้นเขียนโค้ดภาษา HTML เพื่อสร้างกล่องคอนเทนเนอร์และปุ่มสำหรับกด",
+        pdf: "mission1_1.pdf"
     },
     {
         id: "MISSION 2.2",
         title: "Cloud JavaScript Sync",
-        desc: "การเขียนโค้ดสคริปต์สั่งให้หน้าปุ่มควบคุมส่งค่าสถานะ ON หรือ OFF ขึ้นไปอัปเดตบนฐานข้อมูลคลาวด์",
-        pdf: "mission2_2.pdf",
-        code: "function toggleDevice(channel) {\n  let isChecked = document.getElementById('device' + channel).checked;\n  let status = isChecked ? 'ON' : 'OFF';\n  \n  db.ref('SmartHome/relay_' + channel).set({\n     status: status\n  });\n}"
+        desc: "การเขียนโค้ดสคริปต์สั่งให้หน้าปุ่มควบคุมส่งค่าสถานะขึ้นไปอัปเดตบนฐานข้อมูลคลาวด์",
+        pdf: "mission2_2.pdf"
     },
     {
         id: "MISSION 3.3",
         title: "NodeMCU Wi-Fi & NTP",
-        desc: "การเขียนโปรแกรมลงบอร์ดไมโครคอนโทรลเลอร์สั่งเชื่อมต่อเครือข่ายอินเทอร์เน็ตและซิงค์เวลาโลก",
-        pdf: "mission3_3.pdf",
-        code: "#include <ESP8266WiFi.h>\n\nvoid setup() {\n  WiFi.begin(\"ชื่อไวไฟของคุณ\", \"รหัสผ่านไวไฟของคุณ\");\n  configTime(7 * 3600, 0, \"pool.ntp.org\");\n}"
+        desc: "การเขียนโปรแกรมลงบอร์ดไมโครคอนโทรลเลอร์สั่งเชื่อมต่อ Wi-Fi และซิงค์เวลาโลก",
+        pdf: "mission3_3.pdf"
     },
     {
         id: "MISSION 4.1",
         title: "Final Hardware Test",
-        desc: "ประกอบร่างซอร์สโค้ดฝั่งบอร์ดทั้งหมดเพื่อรับข้อมูลการกดสวิตช์มาแปรเปลี่ยนเป็นแรงดันไฟควบคุมชุดรีเลย์",
-        pdf: "mission4_1.pdf",
-        code: "if (status == \"ON\") {\n  digitalWrite(RELAY1, LOW);  // สั่งเปิดอุปกรณ์ไฟฟ้า\n} else if (status == \"OFF\") {\n  digitalWrite(RELAY1, HIGH); // สั่งปิดอุปกรณ์ไฟฟ้า\n}"
+        desc: "ประกอบร่างซอร์สโค้ดเพื่อรับข้อมูลการกดสวิตช์มาแปรเปลี่ยนเป็นแรงดันไฟควบคุมชุดรีเลย์",
+        pdf: "mission4_1.pdf"
     }
 ];
 
-// 2. ฟังก์ชันเริ่มสร้างเมนูที่แถบซ้ายเมื่อเปิดหน้าเว็บ
+// ฟังก์ชันสร้างรายการเมนูภารกิจ
 function initSystem() {
     const menuContainer = document.getElementById("sidebarMenu");
     menuContainer.innerHTML = "";
@@ -265,40 +256,35 @@ function initSystem() {
         menuContainer.appendChild(li);
     });
     
-    // โหลดข้อมูลด่านแรกขึ้นมารอไว้บนหน้าจอ
     selectMission(0);
 }
 
-// 3. ฟังก์ชันสลับเปลี่ยนเนื้อหาบทเรียนเมื่อคลิกเลือกเมนู
+// ฟังก์ชันสลับเปลี่ยนไฟล์คู่มือ PDF เมื่อคลิกเมนู
 function selectMission(index) {
-    // สลับคลาสการไฮไลท์สีปุ่มเมนูที่แถบซ้าย
     const items = document.querySelectorAll(".mission-item");
     items.forEach(item => item.classList.remove("active"));
     items[index].classList.add("active");
     
-    // ดึงชุดข้อมูลของด่านนั้นมาอัปเดตหน้าจอหลัก
     const mission = database[index];
     document.getElementById("mainTitle").innerText = mission.id;
     document.getElementById("mainSubtitle").innerText = "📌 " + mission.title;
     document.getElementById("mainDesc").innerText = mission.desc;
     
-    // อัปเดตการแสดงผลไฟล์ PDF และซอร์สโค้ดตัวอย่าง
+    // โหลดไฟล์ PDF ของด่านนั้นๆ เข้ามาฉายในหน้าจอหลัก
     document.getElementById("pdfViewer").src = mission.pdf;
-    document.getElementById("codeViewer").innerText = mission.code;
 }
 
-// 4. หน้าต่างแนะนำเคล็ดลับแนวทางการคุยกับ AI ประจำเว็บแอป
+// หน้าต่างป๊อปอัปให้คำแนะนำการเขียน Prompt ของนักเรียน
 function openAITips() {
     alert(
         "🤖 แนะนำวิธียื่นคำถามให้ที่ปรึกษาหลัก (Gemini Tutor):\n\n" +
         "1. เมื่อรันโค้ดแล้วระบบระเบิดเออร์เรอร์:\n" +
         "   ให้ก๊อปปี้แถบตัวอักษรสีส้มแจ้งเตือนด้านล่างจากโปรแกรมส่งให้ AI ตรวจสอบตรงๆ\n\n" +
-        "2. เมื่อไม่เข้าใจบทบาทของชุดคำสั่งในกล่องโค้ด:\n" +
-        "   ให้เขียนคำสั่งถามว่า 'ช่วยอธิบายการทำงานของฟังก์ชันนี้ให้เด็กนักเรียนเข้าใจง่ายๆ หน่อย'"
+        "2. เมื่อไม่เข้าใจบทบาทของชุดคำสั่งในคู่มือ:\n" +
+        "   ให้เขียนคำสั่งถามว่า 'ช่วยอธิบายการทำงานของระบบนี้ให้เด็กนักเรียนเข้าใจง่ายๆ หน่อย'"
     );
 }
 
-// สั่งให้ระบบทำงานทันทีเมื่อหน้าเพจถูกโหลดสำเร็จ
 window.onload = initSystem;
 </script>
 </body>
