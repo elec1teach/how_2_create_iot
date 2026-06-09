@@ -84,7 +84,9 @@
 
     .mission-id { font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: 13px; color: var(--neon-blue); }
     .mission-title { font-weight: 500; font-size: 14px; color: var(--text-main); margin: 2px 0; }
-    .mission-desc { font-size: 11px; color: var(--text-muted); }
+    .mission-desc { font-size: 11px; color: var(--text-muted); display: none; } /* ซ่อนคำอธิบายในหน้าจอเล็กเพื่อประหยัดพื้นที่ */
+
+    .mission-item.active .mission-desc { display: block; } /* โชว์เฉพาะอันที่เลือก */
 
     /* พื้นที่เนื้อหาหลัก */
     .main-content {
@@ -93,6 +95,7 @@
         display: flex;
         flex-direction: column;
         height: 100vh;
+        overflow-y: auto;
     }
 
     .content-header {
@@ -109,10 +112,10 @@
         letter-spacing: 1px;
     }
 
-    /* พื้นที่แสดงไฟล์ PDF ขยายใหญ่เต็มจอคอมพิวเตอร์ */
+    /* พื้นที่แสดงไฟล์ PDF */
     .pdf-container {
         width: 100%;
-        height: calc(100vh - 170px); /* ปรับความสูงอัตโนมัติให้ใหญ่เต็มที่สายตา */
+        height: calc(100vh - 170px);
         background: #1e293b;
         border: 1px solid rgba(0, 255, 255, 0.2);
         border-radius: 12px;
@@ -120,6 +123,7 @@
         overflow: hidden;
         position: relative;
         flex: 1;
+        min-height: 400px;
     }
     
     .pdf-placeholder {
@@ -138,7 +142,7 @@
         border: none;
         position: relative;
         z-index: 2;
-        background: transparent;
+        background: white; /* เปลี่ยนพื้นหลังเป็นสีขาวให้ตัวหนังสืออ่านง่ายขึ้น */
     }
 
     /* ปุ่ม AI */
@@ -163,6 +167,36 @@
         transform: translateY(-3px);
         box-shadow: 0 6px 25px rgba(139, 92, 246, 0.5);
     }
+
+    /* 📱 การจัดหน้าจอสำหรับมือถือและแท็บเล็ต */
+    @media (max-width: 850px) {
+        body {
+            flex-direction: column;
+            overflow-y: auto;
+            height: auto;
+        }
+        .sidebar {
+            width: 100%;
+            height: auto;
+            max-height: 250px;
+            border-right: none;
+            border-bottom: 1px solid rgba(0, 255, 255, 0.2);
+        }
+        .main-content {
+            height: auto;
+            overflow: visible;
+            padding: 20px;
+        }
+        .pdf-container {
+            height: 75vh; /* ความสูงพอดีกับหน้าจอมือถือ */
+        }
+        .ask-ai-btn {
+            bottom: 15px;
+            right: 15px;
+            padding: 10px 16px;
+            font-size: 13px;
+        }
+    }
 </style>
 </head>
 <body>
@@ -181,7 +215,7 @@
 
         <h3 style="color: var(--neon-blue); margin-bottom: 12px; font-size: 16px;">📄 Operation Manual (คู่มือปฏิบัติการ)</h3>
         <div class="pdf-container">
-            <div class="pdf-placeholder" id="pdfPlaceholder">กำลังโหลดไฟล์ PDF คู่มือ...</div>
+            <div class="pdf-placeholder" id="pdfPlaceholder">กำลังโหลดเอกสาร...</div>
             <iframe id="pdfViewer" src=""></iframe>
         </div>
     </main>
@@ -191,7 +225,7 @@
     </button>
 
 <script>
-// ฐานข้อมูลบทเรียนและไฟล์ PDF (ตัดส่วนของ code snippet ทิ้งเพื่อความสะอาดของระบบ)
+// ฐานข้อมูลบทเรียน (สามารถเพิ่ม/ลดได้อิสระ)
 const database = [
     {
         id: "MISSION 0.1",
@@ -209,7 +243,7 @@ const database = [
         id: "MISSION 0.3",
         title: "The Cloud Database",
         desc: "การสมัครบัญชี Google Cloud และเปิดใช้งาน Realtime Database บนระบบ Firebase",
-        pdf: "22.pdf" /* เรียกใช้ไฟล์คู่มือสมัครตามฐานข้อมูลจริงของคุณครู */
+        pdf: "22.pdf"
     },
     {
         id: "MISSION 1.1",
@@ -237,7 +271,6 @@ const database = [
     }
 ];
 
-// ฟังก์ชันสร้างรายการเมนูภารกิจ
 function initSystem() {
     const menuContainer = document.getElementById("sidebarMenu");
     menuContainer.innerHTML = "";
@@ -259,7 +292,6 @@ function initSystem() {
     selectMission(0);
 }
 
-// ฟังก์ชันสลับเปลี่ยนไฟล์คู่มือ PDF เมื่อคลิกเมนู
 function selectMission(index) {
     const items = document.querySelectorAll(".mission-item");
     items.forEach(item => item.classList.remove("active"));
@@ -270,18 +302,35 @@ function selectMission(index) {
     document.getElementById("mainSubtitle").innerText = "📌 " + mission.title;
     document.getElementById("mainDesc").innerText = mission.desc;
     
-    // โหลดไฟล์ PDF ของด่านนั้นๆ เข้ามาฉายในหน้าจอหลัก
-    document.getElementById("pdfViewer").src = mission.pdf;
+    const pdfViewer = document.getElementById("pdfViewer");
+    
+    // -- เริ่มระบบแก้ปัญหาเปิด PDF ไม่ขึ้นบนมือถือ --
+    
+    // 1. ดึง URL ปัจจุบันแบบเต็ม (ตัดพวก ?fbclid= ที่แถมมาจาก Facebook ออก)
+    const currentBaseUrl = window.location.href.split('?')[0];
+    
+    // 2. สร้าง URL แบบเต็มยศของไฟล์ PDF เพื่อส่งให้ Google Docs
+    const absolutePdfUrl = new URL(mission.pdf, currentBaseUrl).href;
+    
+    // 3. ตรวจจับว่าเป็นหน้าจอมือถือ/แท็บเล็ต หรือคอมพิวเตอร์
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    
+    if (isMobile) {
+        // [เวทมนตร์สำหรับมือถือ] บังคับโยนไฟล์ให้ Google Docs Viewer อ่านให้ แล้วดึงมาโชว์ใน iframe ของเรา
+        pdfViewer.src = `https://docs.google.com/gview?url=${encodeURIComponent(absolutePdfUrl)}&embedded=true`;
+    } else {
+        // คอมพิวเตอร์ปกติรองรับอยู่แล้ว ให้โหลดไฟล์ตรงๆ ได้เลยภาพจะคมชัดกว่า
+        pdfViewer.src = mission.pdf;
+    }
 }
 
-// หน้าต่างป๊อปอัปให้คำแนะนำการเขียน Prompt ของนักเรียน
 function openAITips() {
     alert(
         "🤖 แนะนำวิธียื่นคำถามให้ที่ปรึกษาหลัก (Gemini Tutor):\n\n" +
         "1. เมื่อรันโค้ดแล้วระบบระเบิดเออร์เรอร์:\n" +
-        "   ให้ก๊อปปี้แถบตัวอักษรสีส้มแจ้งเตือนด้านล่างจากโปรแกรมส่งให้ AI ตรวจสอบตรงๆ\n\n" +
+        "   ให้ก๊อปปี้ข้อความสีส้มแจ้งเตือนด้านล่างจากโปรแกรมส่งให้ AI ตรวจสอบตรงๆ\n\n" +
         "2. เมื่อไม่เข้าใจบทบาทของชุดคำสั่งในคู่มือ:\n" +
-        "   ให้เขียนคำสั่งถามว่า 'ช่วยอธิบายการทำงานของระบบนี้ให้เด็กนักเรียนเข้าใจง่ายๆ หน่อย'"
+        "   ให้เขียนคำสั่งถามว่า 'ช่วยอธิบายการทำงานของระบบนี้ให้เข้าใจง่ายๆ หน่อย'"
     );
 }
 
