@@ -84,9 +84,9 @@
 
     .mission-id { font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: 13px; color: var(--neon-blue); }
     .mission-title { font-weight: 500; font-size: 14px; color: var(--text-main); margin: 2px 0; }
-    .mission-desc { font-size: 11px; color: var(--text-muted); display: none; } /* ซ่อนคำอธิบายในหน้าจอเล็กเพื่อประหยัดพื้นที่ */
+    .mission-desc { font-size: 11px; color: var(--text-muted); display: none; }
 
-    .mission-item.active .mission-desc { display: block; } /* โชว์เฉพาะอันที่เลือก */
+    .mission-item.active .mission-desc { display: block; }
 
     /* พื้นที่เนื้อหาหลัก */
     .main-content {
@@ -98,24 +98,10 @@
         overflow-y: auto;
     }
 
-    .content-header {
-        margin-bottom: 20px;
-        border-bottom: 1px solid rgba(255,255,255,0.1);
-        padding-bottom: 15px;
-        flex-shrink: 0;
-    }
-
-    .content-header h1 {
-        font-family: 'Orbitron', sans-serif;
-        font-size: 26px;
-        color: white;
-        letter-spacing: 1px;
-    }
-
-    /* พื้นที่แสดงไฟล์ PDF */
+    /* พื้นที่แสดงไฟล์ PDF - ปรับความสูงให้เต็มตาขึ้น */
     .pdf-container {
         width: 100%;
-        height: calc(100vh - 170px);
+        height: calc(100vh - 90px); /* ขยายขนาดเพิ่มขึ้นเต็มหน้าจอ */
         background: #1e293b;
         border: 1px solid rgba(0, 255, 255, 0.2);
         border-radius: 12px;
@@ -142,7 +128,7 @@
         border: none;
         position: relative;
         z-index: 2;
-        background: white; /* เปลี่ยนพื้นหลังเป็นสีขาวให้ตัวหนังสืออ่านง่ายขึ้น */
+        background: white;
     }
 
     /* ปุ่ม AI */
@@ -188,7 +174,7 @@
             padding: 20px;
         }
         .pdf-container {
-            height: 75vh; /* ความสูงพอดีกับหน้าจอมือถือ */
+            height: 80vh; /* เพิ่มสัดส่วนบนจอมือถือให้อ่านได้กว้างขึ้น */
         }
         .ask-ai-btn {
             bottom: 15px;
@@ -207,13 +193,8 @@
     </aside>
 
     <main class="main-content">
-        <div class="content-header">
-            <h1 id="mainTitle">LOADING...</h1>
-            <p id="mainSubtitle" style="color: var(--neon-blue); font-size: 14px; margin-top: 4px; font-weight: 500;"></p>
-            <p id="mainDesc" style="color: var(--text-muted); margin-top: 8px; font-size: 13px;"></p>
-        </div>
-
         <h3 style="color: var(--neon-blue); margin-bottom: 12px; font-size: 16px;">📄 Operation Manual (คู่มือปฏิบัติการ)</h3>
+        
         <div class="pdf-container">
             <div class="pdf-placeholder" id="pdfPlaceholder">กำลังโหลดเอกสาร...</div>
             <iframe id="pdfViewer" src=""></iframe>
@@ -225,7 +206,7 @@
     </button>
 
 <script>
-// ฐานข้อมูลบทเรียน (สามารถเพิ่ม/ลดได้อิสระ)
+// ฐานข้อมูลบทเรียน
 const database = [
     {
         id: "MISSION 0.1",
@@ -298,28 +279,23 @@ function selectMission(index) {
     items[index].classList.add("active");
     
     const mission = database[index];
-    document.getElementById("mainTitle").innerText = mission.id;
-    document.getElementById("mainSubtitle").innerText = "📌 " + mission.title;
-    document.getElementById("mainDesc").innerText = mission.desc;
+    
+    // เอาโค้ดอัปเดตข้อความหัวข้อเก่าออก เพื่อไม่ให้เกิด Error
     
     const pdfViewer = document.getElementById("pdfViewer");
     
-    // -- เริ่มระบบแก้ปัญหาเปิด PDF ไม่ขึ้นบนมือถือ --
-    
-    // 1. ดึง URL ปัจจุบันแบบเต็ม (ตัดพวก ?fbclid= ที่แถมมาจาก Facebook ออก)
+    // ดึง URL ปัจจุบันแบบเต็ม
     const currentBaseUrl = window.location.href.split('?')[0];
     
-    // 2. สร้าง URL แบบเต็มยศของไฟล์ PDF เพื่อส่งให้ Google Docs
+    // สร้าง URL ของไฟล์ PDF
     const absolutePdfUrl = new URL(mission.pdf, currentBaseUrl).href;
     
-    // 3. ตรวจจับว่าเป็นหน้าจอมือถือ/แท็บเล็ต หรือคอมพิวเตอร์
+    // ตรวจจับอุปกรณ์
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
     
     if (isMobile) {
-        // [เวทมนตร์สำหรับมือถือ] บังคับโยนไฟล์ให้ Google Docs Viewer อ่านให้ แล้วดึงมาโชว์ใน iframe ของเรา
         pdfViewer.src = `https://docs.google.com/gview?url=${encodeURIComponent(absolutePdfUrl)}&embedded=true`;
     } else {
-        // คอมพิวเตอร์ปกติรองรับอยู่แล้ว ให้โหลดไฟล์ตรงๆ ได้เลยภาพจะคมชัดกว่า
         pdfViewer.src = mission.pdf;
     }
 }
